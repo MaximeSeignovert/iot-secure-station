@@ -14,6 +14,7 @@ node_modules/
 *.pem
 *.key
 secrets/
+esp32-firmware/src/secrets.h
 
 # OS
 .DS_Store
