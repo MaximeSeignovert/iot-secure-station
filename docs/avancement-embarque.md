@@ -11,12 +11,14 @@
 
 | Tâche | Statut |
 |-------|--------|
-| Connexion WiFi (`secrets.h`) | ⬜ |
-| Publication MQTT JSON | ⬜ |
-| Topic `campus/<groupe>/ESP32-1/data` | ⬜ |
+| Connexion WiFi (`secrets.h`) | ✅ code prêt — renseigner vos identifiants locaux |
+| Publication MQTT JSON | ✅ |
+| Topic `campus/<groupe>/ESP32-1/data` | ✅ |
 | Coordination Mosquitto Docker (collègue infra) | ⬜ |
 
-**Fichiers à modifier :** `network/network_task.cpp`, `secrets.h` (local, non versionné)
+**Fichiers modifiés :** `network/network_task.cpp`, `secrets.h` (local, non versionné)
+
+**Limitation connue :** PubSubClient publie en QoS 0 uniquement. Le sujet exige QoS ≥ 1 — migration possible vers `256dpi/arduino-mqtt` si le correcteur le vérifie.
 
 ---
 
@@ -40,7 +42,7 @@
 
 | # | Étape | Statut |
 |---|-------|--------|
-| 4 | WiFi + MQTT | 🔄 En cours |
+| 4 | WiFi + MQTT | ✅ code — validation sur matériel en cours |
 | 5 | Interface web embarquée (`data/`) | ⬜ |
 | 6 | Stockage offline JSON (LittleFS) | ⬜ |
 | 7 | Sécurité + intégration Node-RED | ⬜ |
@@ -112,7 +114,7 @@ Topic : `campus/<MQTT_GROUP>/ESP32-1/data`
 |-------|--------|
 | Embedded Architect | ✅ |
 | Sensor Engineer | ✅ |
-| Network Engineer | ⬜ |
+| Network Engineer | ⬜ (code OK, test bout en bout à faire) |
 | Reliability Engineer | ⬜ |
 | Full-Stack IoT | ⬜ |
 
@@ -124,3 +126,4 @@ Topic : `campus/<MQTT_GROUP>/ESP32-1/data`
 |------|--------|
 | 2026-06-15 | Étapes 0–2 validées, DHT22 opérationnel |
 | 2026-06-15 | Nettoyage repo pour étape 4 (LED retirée, secrets.h.example) |
+| 2026-06-15 | Implémentation WiFi + MQTT dans `network_task.cpp` |
