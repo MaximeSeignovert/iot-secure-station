@@ -2,10 +2,15 @@
 
 #include "../config.h"
 #include "../network/network_task.h"
+#include "../security/device_config.h"
 #include "../security/security.h"
 #include "../sensors/sensor_data.h"
 #include "../secrets.h"
 #include "../storage/storage.h"
+
+#ifndef API_TOKEN
+#define API_TOKEN ""
+#endif
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -31,6 +36,15 @@ void sendError(int code, const char* message) {
     doc["ok"] = false;
     doc["error"] = message;
     sendJson(code, doc);
+}
+
+bool requireApiAuth() {
+    if (securityAuthorizeApi(g_server.header("X-Api-Token").c_str())) {
+        return true;
+    }
+
+    sendError(401, "non autorise");
+    return false;
 }
 
 bool serveStaticFile(const char* path, const char* contentType) {
@@ -74,7 +88,10 @@ void handleApiStatus() {
     mqtt["broker"] = network.mqttBroker;
     mqtt["port"] = network.mqttPort;
     mqtt["topic"] = network.mqttTopic;
-    mqtt["user"] = MQTT_USER;
+
+    DeviceMqttConfig mqttConfig;
+    deviceConfigGetMqtt(mqttConfig);
+    mqtt["user"] = mqttConfig.user;
 
     sendJson(200, doc);
 }
@@ -97,20 +114,67 @@ void handleApiSensors() {
 }
 
 void handleApiConfigGet() {
+    DeviceMqttConfig mqttConfig;
+    deviceConfigGetMqtt(mqttConfig);
+
     JsonDocument doc;
     doc["device"] = DEVICE_ID;
     doc["group"] = MQTT_GROUP;
-    doc["broker"] = MQTT_BROKER;
-    doc["port"] = MQTT_PORT;
-    doc["user"] = MQTT_USER;
+    doc["broker"] = mqttConfig.broker;
+    doc["port"] = mqttConfig.port;
+    doc["user"] = mqttConfig.user;
     doc["topic"] = String("campus/") + MQTT_GROUP + "/" + DEVICE_ID + "/data";
-    doc["editable"] = false;
-    doc["note"] = "Modifier secrets.h puis recompiler pour changer la config MQTT";
+    doc["editable"] = true;
+    doc["authRequired"] = API_TOKEN[0] != '\0';
+    doc["persisted"] = mqttConfig.fromNvs;
+    doc["note"] =
+        mqttConfig.fromNvs
+            ? "Configuration MQTT chargee depuis la NVS"
+            : "Valeurs par defaut (secrets.h) — enregistrer pour persister";
 
     sendJson(200, doc);
 }
 
+void handleApiConfigPost() {
+    if (!requireApiAuth()) {
+        return;
+    }
+
+    if (!g_server.hasArg("plain")) {
+        sendError(400, "corps JSON manquant");
+        return;
+    }
+
+    JsonDocument doc;
+    const DeserializationError err =
+        deserializeJson(doc, g_server.arg("plain"));
+
+    if (err || !securityValidateMqttConfig(doc)) {
+        sendError(400, "configuration MQTT invalide");
+        return;
+    }
+
+    if (!deviceConfigSaveMqtt(doc)) {
+        sendError(500, "echec sauvegarde NVS");
+        return;
+    }
+
+    networkApplyMqttConfig();
+
+    JsonDocument response;
+    response["ok"] = true;
+    response["message"] = "configuration MQTT enregistree";
+    response["broker"] = doc["broker"];
+    response["port"] = doc["port"];
+
+    sendJson(200, response);
+}
+
 void handleApiActuatorsPost() {
+    if (!requireApiAuth()) {
+        return;
+    }
+
     if (!g_server.hasArg("plain")) {
         sendError(400, "corps JSON manquant");
         return;
@@ -157,6 +221,7 @@ void startWebServer() {
     g_server.on("/api/status", HTTP_GET, handleApiStatus);
     g_server.on("/api/sensors", HTTP_GET, handleApiSensors);
     g_server.on("/api/config", HTTP_GET, handleApiConfigGet);
+    g_server.on("/api/config", HTTP_POST, handleApiConfigPost);
     g_server.on("/api/actuators", HTTP_POST, handleApiActuatorsPost);
     g_server.onNotFound(handleNotFound);
 

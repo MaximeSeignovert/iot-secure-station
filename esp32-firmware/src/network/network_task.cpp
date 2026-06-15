@@ -3,6 +3,7 @@
 #include "../config.h"
 #include "../secrets.h"
 #include "../sensors/sensor_data.h"
+#include "../security/device_config.h"
 #include "../storage/storage.h"
 
 #include <Arduino.h>
@@ -17,6 +18,12 @@ static PubSubClient g_mqttClient(g_wifiClient);
 static char g_mqttTopic[96];
 static bool g_wifiStarted = false;
 static bool g_mqttWasConnected = false;
+
+void applyMqttRuntimeConfig() {
+    DeviceMqttConfig mqttConfig;
+    deviceConfigGetMqtt(mqttConfig);
+    g_mqttClient.setServer(mqttConfig.broker, mqttConfig.port);
+}
 
 namespace {
 
@@ -164,13 +171,20 @@ bool connectMqtt() {
         return false;
     }
 
+    DeviceMqttConfig mqttConfig;
+    deviceConfigGetMqtt(mqttConfig);
+
     const String clientId = String(DEVICE_ID) + "-" + String(esp_random(), HEX);
 
-    Serial.printf("[network] connexion MQTT %s:%d...\n", MQTT_BROKER, MQTT_PORT);
+    Serial.printf("[network] connexion MQTT %s:%u...\n",
+                  mqttConfig.broker,
+                  mqttConfig.port);
 
     const bool connected =
-        (MQTT_USER[0] != '\0')
-            ? g_mqttClient.connect(clientId.c_str(), MQTT_USER, MQTT_PASSWORD)
+        (mqttConfig.user[0] != '\0')
+            ? g_mqttClient.connect(clientId.c_str(),
+                                   mqttConfig.user,
+                                   mqttConfig.password)
             : g_mqttClient.connect(clientId.c_str());
 
     if (!connected) {
@@ -220,7 +234,7 @@ void networkTask(void* parameter) {
     (void)parameter;
 
     buildMqttTopic();
-    g_mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
+    applyMqttRuntimeConfig();
     g_mqttClient.setBufferSize(MQTT_BUFFER_SIZE);
     g_mqttClient.setKeepAlive(60);
 
@@ -274,6 +288,9 @@ void networkTask(void* parameter) {
 }  // namespace
 
 void networkGetStatus(NetworkStatus& out) {
+    DeviceMqttConfig mqttConfig;
+    deviceConfigGetMqtt(mqttConfig);
+
     out.wifiConnected = WiFi.status() == WL_CONNECTED;
     out.mqttConnected = g_mqttClient.connected();
     out.rssi = out.wifiConnected ? WiFi.RSSI() : 0;
@@ -286,9 +303,19 @@ void networkGetStatus(NetworkStatus& out) {
         out.ssid[0] = '\0';
     }
 
-    snprintf(out.mqttBroker, sizeof(out.mqttBroker), "%s", MQTT_BROKER);
-    out.mqttPort = MQTT_PORT;
+    snprintf(out.mqttBroker, sizeof(out.mqttBroker), "%s", mqttConfig.broker);
+    out.mqttPort = mqttConfig.port;
     snprintf(out.mqttTopic, sizeof(out.mqttTopic), "%s", g_mqttTopic);
+}
+
+void networkApplyMqttConfig() {
+    if (g_mqttClient.connected()) {
+        g_mqttClient.disconnect();
+    }
+
+    g_mqttWasConnected = false;
+    applyMqttRuntimeConfig();
+    Serial.println("[network] config MQTT rechargee depuis NVS");
 }
 
 void networkTaskStart() {

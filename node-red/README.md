@@ -11,6 +11,5 @@
 
 | Topic | Direction | Description |
 |-------|-----------|-------------|
-| `station/sensors/#` | ESP32 → Node-RED | Données capteurs |
-| `station/actuators/#` | Node-RED → ESP32 | Commandes actuateurs |
-| `station/alerts` | ESP32 → Node-RED | Alertes sécurité |
+| `campus/<groupe>/<device>/data` | ESP32 → Node-RED | Données capteurs (JSON) |
+| `campus/<groupe>/<device>/cmd` | Node-RED → ESP32 | Commandes actionneurs (futur) |

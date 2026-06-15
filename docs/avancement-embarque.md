@@ -7,13 +7,13 @@
 
 ---
 
-## Étape en cours : 7 — Sécurité + intégration Node-RED
+## Étape en cours : 8 — Démo bout en bout
 
 | Tâche | Statut |
 |-------|--------|
-| Validation JSON entrantes | ⬜ (base existante) |
-| Auth API locale | ⬜ |
-| Config MQTT persistante (NVS) | ⬜ |
+| Validation MQTT + Node-RED live | ⬜ |
+| Test mode offline → flush | ⬜ |
+| Captures / rapport | ⬜ |
 
 ---
 
@@ -27,6 +27,7 @@
 | 4 | WiFi + MQTT | Connexion WiFi OK (2,4 GHz), publication JSON, topic `campus/groupe/ESP32-1/data` |
 | 5 | Interface web embarquée | Serveur HTTP + LittleFS, API REST, dashboard live |
 | 6 | Stockage offline JSON | File d'attente LittleFS, enqueue si MQTT down, flush auto à la reconnexion |
+| 7 | Sécurité + Node-RED | Auth API, validation JSON, config MQTT NVS, flux Node-RED `campus/#` |
 
 ## Reporté
 
@@ -40,8 +41,26 @@
 
 | # | Étape | Statut |
 |---|-------|--------|
-| 7 | Sécurité + intégration Node-RED | ⬜ Prochaine |
-| 8 | Démo bout en bout | ⬜ |
+| 8 | Démo bout en bout | ⬜ Prochaine |
+
+---
+
+## Étape 7 — Sécurité + Node-RED (détail)
+
+| Tâche | Statut |
+|-------|--------|
+| Auth API locale (`X-Api-Token`) sur POST | ✅ |
+| Validation JSON actionneurs (whitelist) | ✅ |
+| Validation JSON config MQTT | ✅ |
+| Persistance broker/port/user/pass en NVS | ✅ |
+| `POST /api/config` + formulaire web | ✅ |
+| Flux Node-RED `campus/#` | ✅ |
+
+**Auth :** définir `API_TOKEN` dans `secrets.h` (voir `secrets.h.example`). Header requis : `X-Api-Token`.
+
+**NVS :** namespace `iotcfg` — surcharge les valeurs `secrets.h` après enregistrement via l'interface web.
+
+**Node-RED :** `docker compose up` puis http://localhost:1880 — flux importé depuis `node-red/flows.json`.
 
 ---
 
@@ -96,7 +115,7 @@ esp32-firmware/src/
   network/              ← WiFi + MQTT + flush offline ✅
   web/                  ← serveur HTTP + API REST ✅
   storage/              ← file d'attente JSON LittleFS ✅
-  security/             ← validation JSON ✅ (base)
+  security/             ← validation JSON, auth API, config NVS ✅
   supervision/          ← heap + uptime ✅
   actuators/            ← stub
 esp32-firmware/data/
@@ -139,7 +158,8 @@ $pio = "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe"
 | `/api/status` | GET | WiFi, MQTT, uptime, heap |
 | `/api/sensors` | GET | Température + humidité DHT22 |
 | `/api/config` | GET | Broker, port, topic MQTT |
-| `/api/actuators` | POST | Commande actionneur (JSON `{ "action": "..." }`) |
+| `/api/config` | POST | Enregistrer config MQTT en NVS (auth requise) |
+| `/api/actuators` | POST | Commande actionneur (JSON `{ "action": "..." }`, auth requise) |
 
 ---
 
@@ -164,8 +184,9 @@ Topic : `campus/<MQTT_GROUP>/ESP32-1/data`
 | Embedded Architect | ✅ |
 | Sensor Engineer | ✅ |
 | Network Engineer | ⬜ (WiFi OK, MQTT à valider bout en bout) |
+| Security Engineer | ✅ |
 | Reliability Engineer | ✅ |
-| Full-Stack IoT | ⬜ (web OK, Node-RED en attente) |
+| Full-Stack IoT | ⬜ (web OK, démo Node-RED en attente) |
 
 ---
 
@@ -179,3 +200,4 @@ Topic : `campus/<MQTT_GROUP>/ESP32-1/data`
 | 2026-06-15 | Diagnostic WiFi 5 GHz → résolu (hotspot 2,4 GHz) |
 | 2026-06-15 | Étape 5 : serveur web embarqué, API REST, dashboard `data/` |
 | 2026-06-15 | Étape 6 : stockage offline JSON LittleFS, flush MQTT automatique |
+| 2026-06-15 | Étape 7 : auth API, config MQTT NVS, validation JSON, flux Node-RED |

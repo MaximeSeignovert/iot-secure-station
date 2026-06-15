@@ -69,11 +69,34 @@
         <section class="card config-card">
             <h2>Configuration MQTT</h2>
             <p class="hint" id="config-note">Chargement…</p>
-            <dl class="config-list">
-                <div><dt>Broker</dt><dd id="cfg-broker">—</dd></div>
-                <div><dt>Port</dt><dd id="cfg-port">—</dd></div>
-                <div><dt>Topic</dt><dd id="cfg-topic">—</dd></div>
-            </dl>
+            <form id="config-form" class="config-form">
+                <label>
+                    Broker
+                    <input type="text" id="cfg-broker-input" name="broker" required>
+                </label>
+                <label>
+                    Port
+                    <input type="number" id="cfg-port-input" name="port" min="1" max="65535" required>
+                </label>
+                <label>
+                    Utilisateur MQTT
+                    <input type="text" id="cfg-user-input" name="user" autocomplete="off">
+                </label>
+                <label>
+                    Mot de passe MQTT
+                    <input type="password" id="cfg-password-input" name="password" autocomplete="off">
+                </label>
+                <label>
+                    Jeton API local
+                    <input type="password" id="api-token-input" name="apiToken" autocomplete="off"
+                           placeholder="X-Api-Token pour POST">
+                </label>
+                <div class="actions">
+                    <button type="submit" id="btn-save-config">Enregistrer (NVS)</button>
+                </div>
+            </form>
+            <p class="hint">Topic : <span id="cfg-topic">—</span></p>
+            <pre id="config-result" class="result">—</pre>
         </section>
 
         <section class="card actuators-card">

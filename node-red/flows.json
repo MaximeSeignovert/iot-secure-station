@@ -4,6 +4,111 @@
         "type": "tab",
         "label": "IoT Secure Station",
         "disabled": false,
-        "info": "Flux principal de supervision de la station IoT sécurisée"
+        "info": "Réception MQTT campus/# et affichage des mesures capteurs"
+    },
+    {
+        "id": "iot-mosquitto-broker",
+        "type": "mqtt-broker",
+        "name": "Mosquitto",
+        "broker": "mosquitto",
+        "port": "1883",
+        "clientid": "node-red-iot-secure-station",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true
+    },
+    {
+        "id": "iot-mqtt-in-data",
+        "type": "mqtt in",
+        "z": "iot-secure-station-tab",
+        "name": "Données campus/#",
+        "topic": "campus/#",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "iot-mosquitto-broker",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 150,
+        "y": 120,
+        "wires": [
+            [
+                "iot-json-parse",
+                "iot-debug-payload"
+            ]
+        ]
+    },
+    {
+        "id": "iot-json-parse",
+        "type": "json",
+        "z": "iot-secure-station-tab",
+        "name": "Parser JSON",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 380,
+        "y": 100,
+        "wires": [
+            [
+                "iot-format-dashboard"
+            ]
+        ]
+    },
+    {
+        "id": "iot-format-dashboard",
+        "type": "function",
+        "z": "iot-secure-station-tab",
+        "name": "Formater mesures",
+        "func": "const p = msg.payload || {};\nconst data = p.data || {};\nmsg.payload = {\n    device: p.device || 'inconnu',\n    ts: p.ts || 0,\n    temp: data.temp,\n    humidity: data.humidity,\n    topic: msg.topic\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 590,
+        "y": 100,
+        "wires": [
+            [
+                "iot-debug-measures"
+            ]
+        ]
+    },
+    {
+        "id": "iot-debug-payload",
+        "type": "debug",
+        "z": "iot-secure-station-tab",
+        "name": "Payload brut",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 390,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "iot-debug-measures",
+        "type": "debug",
+        "z": "iot-secure-station-tab",
+        "name": "Mesures formatées",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 810,
+        "y": 100,
+        "wires": []
     }
 ]

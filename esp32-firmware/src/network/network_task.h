@@ -15,3 +15,4 @@ struct NetworkStatus {
 
 void networkTaskStart();
 void networkGetStatus(NetworkStatus& out);
+void networkApplyMqttConfig();
