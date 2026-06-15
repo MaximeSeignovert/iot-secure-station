@@ -1,29 +1,241 @@
-﻿* {
+﻿:root {
+    --bg: #0b1220;
+    --panel: #111827;
+    --panel-border: #1f2937;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --ok: #22c55e;
+    --ko: #ef4444;
+    --tile: #0f172a;
+}
+
+* {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
 }
 
 body {
-    font-family: system-ui, sans-serif;
-    background: #0f172a;
-    color: #e2e8f0;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at top, #172554 0%, var(--bg) 45%);
+    color: var(--text);
     min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    line-height: 1.5;
 }
 
-main {
-    text-align: center;
-    padding: 2rem;
+.layout {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    display: grid;
+    gap: 1rem;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.eyebrow {
+    color: var(--accent);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
 }
 
 h1 {
-    margin-bottom: 1rem;
-    color: #38bdf8;
+    font-size: 1.8rem;
+    margin-top: 0.25rem;
 }
 
-#status {
-    color: #94a3b8;
+h2 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+    color: var(--accent);
+}
+
+.header-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.card {
+    background: rgba(17, 24, 39, 0.92);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    background: #334155;
+    color: #cbd5e1;
+}
+
+.badge.ok {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--ok);
+}
+
+.badge.ko {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--ko);
+}
+
+dl {
+    display: grid;
+    gap: 0.45rem;
+}
+
+dl div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+dt {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+dd {
+    font-weight: 600;
+    text-align: right;
+    word-break: break-all;
+}
+
+.section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.sensor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+}
+
+.sensor-tile {
+    background: var(--tile);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.sensor-label {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.sensor-value {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-top: 0.35rem;
+}
+
+.sensor-value small {
+    font-size: 1rem;
+    color: var(--muted);
+    margin-left: 0.25rem;
+}
+
+.hint {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+.config-list dd {
+    max-width: 70%;
+}
+
+.config-form {
+    display: grid;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.config-form label {
+    display: grid;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+}
+
+.config-form input {
+    background: var(--tile);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    color: var(--text);
+    padding: 0.55rem 0.75rem;
+    font: inherit;
+}
+
+.config-form input:focus {
+    outline: 2px solid rgba(56, 189, 248, 0.35);
+    border-color: var(--accent);
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+button {
+    border: 1px solid #2563eb;
+    background: #1d4ed8;
+    color: white;
+    border-radius: 10px;
+    padding: 0.55rem 0.9rem;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+button:hover {
+    background: #2563eb;
+}
+
+.result {
+    background: var(--tile);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 0.75rem;
+    color: #cbd5e1;
+    font-size: 0.85rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+}
+
+@media (max-width: 640px) {
+    .header-meta {
+        align-items: flex-start;
+    }
+
+    .sensor-value {
+        font-size: 1.8rem;
+    }
 }
