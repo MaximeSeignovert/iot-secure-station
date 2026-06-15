@@ -4,14 +4,88 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IoT Secure Station</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <main>
-        <h1>IoT Secure Station</h1>
-        <p id="status">Connexion en cours...</p>
-        <section id="sensors"></section>
-    </main>
-    <script src="app.js"></script>
+    <div class="layout">
+        <header class="header">
+            <div>
+                <p class="eyebrow">Firmware ESP32</p>
+                <h1>IoT Secure Station</h1>
+            </div>
+            <div class="header-meta">
+                <span id="device-id">—</span>
+                <span id="last-update">Mise à jour…</span>
+            </div>
+        </header>
+
+        <section class="status-grid">
+            <article class="card" id="card-wifi">
+                <h2>WiFi</h2>
+                <p class="badge" id="wifi-badge">—</p>
+                <dl>
+                    <div><dt>SSID</dt><dd id="wifi-ssid">—</dd></div>
+                    <div><dt>IP</dt><dd id="wifi-ip">—</dd></div>
+                    <div><dt>Signal</dt><dd id="wifi-rssi">—</dd></div>
+                </dl>
+            </article>
+
+            <article class="card" id="card-mqtt">
+                <h2>MQTT</h2>
+                <p class="badge" id="mqtt-badge">—</p>
+                <dl>
+                    <div><dt>Broker</dt><dd id="mqtt-broker">—</dd></div>
+                    <div><dt>Topic</dt><dd id="mqtt-topic">—</dd></div>
+                    <div><dt>Utilisateur</dt><dd id="mqtt-user">—</dd></div>
+                </dl>
+            </article>
+
+            <article class="card" id="card-system">
+                <h2>Système</h2>
+                <dl>
+                    <div><dt>Uptime</dt><dd id="sys-uptime">—</dd></div>
+                    <div><dt>Heap libre</dt><dd id="sys-heap">—</dd></div>
+                </dl>
+            </article>
+        </section>
+
+        <section class="card sensors-card">
+            <div class="section-head">
+                <h2>Capteurs live</h2>
+                <span class="badge" id="sensor-badge">—</span>
+            </div>
+            <div class="sensor-grid">
+                <div class="sensor-tile">
+                    <p class="sensor-label">Température</p>
+                    <p class="sensor-value"><span id="sensor-temp">—</span><small>°C</small></p>
+                </div>
+                <div class="sensor-tile">
+                    <p class="sensor-label">Humidité</p>
+                    <p class="sensor-value"><span id="sensor-hum">—</span><small>%</small></p>
+                </div>
+            </div>
+        </section>
+
+        <section class="card config-card">
+            <h2>Configuration MQTT</h2>
+            <p class="hint" id="config-note">Chargement…</p>
+            <dl class="config-list">
+                <div><dt>Broker</dt><dd id="cfg-broker">—</dd></div>
+                <div><dt>Port</dt><dd id="cfg-port">—</dd></div>
+                <div><dt>Topic</dt><dd id="cfg-topic">—</dd></div>
+            </dl>
+        </section>
+
+        <section class="card actuators-card">
+            <h2>Actionneurs</h2>
+            <p class="hint">LED reportée — commande API testée côté firmware.</p>
+            <div class="actions">
+                <button type="button" id="btn-led-on" data-action="led_on">LED ON (stub)</button>
+                <button type="button" id="btn-led-off" data-action="led_off">LED OFF (stub)</button>
+            </div>
+            <pre id="actuator-result" class="result">—</pre>
+        </section>
+    </div>
+    <script src="/app.js"></script>
 </body>
 </html>

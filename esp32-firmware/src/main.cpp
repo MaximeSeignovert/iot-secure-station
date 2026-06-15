@@ -1,4 +1,5 @@
 ﻿#include <Arduino.h>
+#include <WiFi.h>
 
 #include "config.h"
 #include "actuators/actuators.h"
@@ -19,6 +20,9 @@ void setup() {
     actuatorsInit();
     storageInit();
     securityInit();
+
+    WiFi.mode(WIFI_STA);
+    WiFi.persistent(false);
 
     sensorTaskStart();
     networkTaskStart();
