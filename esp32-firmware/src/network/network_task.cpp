@@ -3,6 +3,7 @@
 #include "../config.h"
 #include "../secrets.h"
 #include "../sensors/sensor_data.h"
+#include "../storage/storage.h"
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -15,6 +16,7 @@ static WiFiClient g_wifiClient;
 static PubSubClient g_mqttClient(g_wifiClient);
 static char g_mqttTopic[96];
 static bool g_wifiStarted = false;
+static bool g_mqttWasConnected = false;
 
 namespace {
 
@@ -206,6 +208,14 @@ bool publishSensorSnapshot(const SensorSnapshot& snapshot) {
     return published;
 }
 
+bool publishStoredPayload(const char* payload) {
+    const bool published = g_mqttClient.publish(g_mqttTopic, payload, false);
+    if (published) {
+        Serial.printf("[network] republie (offline) -> %s\n", payload);
+    }
+    return published;
+}
+
 void networkTask(void* parameter) {
     (void)parameter;
 
@@ -222,22 +232,38 @@ void networkTask(void* parameter) {
     for (;;) {
         g_mqttClient.loop();
 
-        if (WiFi.status() != WL_CONNECTED) {
+        const bool wifiUp = WiFi.status() == WL_CONNECTED;
+        const bool mqttUp = wifiUp && g_mqttClient.connected();
+
+        if (!wifiUp) {
             const uint32_t now = millis();
             if (now - lastWifiAttempt >= WIFI_RETRY_MS) {
                 lastWifiAttempt = now;
                 connectWiFi();
             }
-        } else if (!g_mqttClient.connected()) {
+        } else if (!mqttUp) {
             const uint32_t now = millis();
             if (now - lastMqttAttempt >= MQTT_CONNECT_RETRY_MS) {
                 lastMqttAttempt = now;
                 connectMqtt();
             }
-        } else {
-            SensorSnapshot snapshot;
-            if (sensorDataGet(snapshot) && snapshot.valid) {
-                publishSensorSnapshot(snapshot);
+        }
+
+        if (mqttUp && !g_mqttWasConnected) {
+            g_mqttWasConnected = true;
+            storageFlush(publishStoredPayload);
+        } else if (!mqttUp && g_mqttWasConnected) {
+            g_mqttWasConnected = false;
+        }
+
+        SensorSnapshot snapshot;
+        if (sensorDataGet(snapshot) && snapshot.valid) {
+            if (mqttUp) {
+                if (!publishSensorSnapshot(snapshot)) {
+                    storageEnqueue(snapshot);
+                }
+            } else {
+                storageEnqueue(snapshot);
             }
         }
 

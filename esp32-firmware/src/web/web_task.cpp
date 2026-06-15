@@ -5,6 +5,7 @@
 #include "../security/security.h"
 #include "../sensors/sensor_data.h"
 #include "../secrets.h"
+#include "../storage/storage.h"
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -33,17 +34,22 @@ void sendError(int code, const char* message) {
 }
 
 bool serveStaticFile(const char* path, const char* contentType) {
+    storageFsLock();
+
     if (!LittleFS.exists(path)) {
+        storageFsUnlock();
         return false;
     }
 
     File file = LittleFS.open(path, "r");
     if (!file) {
+        storageFsUnlock();
         return false;
     }
 
     g_server.streamFile(file, contentType);
     file.close();
+    storageFsUnlock();
     return true;
 }
 
@@ -164,12 +170,6 @@ void startWebServer() {
 void webTask(void* parameter) {
     (void)parameter;
     Serial.println("[web] task started");
-
-    if (!LittleFS.begin(/*formatOnFail=*/true)) {
-        Serial.println("[web] echec montage LittleFS");
-    } else {
-        Serial.println("[web] LittleFS monte");
-    }
 
     for (;;) {
         if (WiFi.status() == WL_CONNECTED) {

@@ -7,15 +7,13 @@
 
 ---
 
-## Étape en cours : 6 — Stockage offline JSON (LittleFS)
+## Étape en cours : 7 — Sécurité + intégration Node-RED
 
 | Tâche | Statut |
 |-------|--------|
-| Persistance mesures si MQTT down | ⬜ |
-| Retransmission auto après reconnexion | ⬜ |
-| Fichier JSON sur LittleFS | ⬜ |
-
-**Fichiers à modifier :** `storage/storage.cpp`, coordination avec `network_task.cpp`
+| Validation JSON entrantes | ⬜ (base existante) |
+| Auth API locale | ⬜ |
+| Config MQTT persistante (NVS) | ⬜ |
 
 ---
 
@@ -28,6 +26,7 @@
 | 2 | DHT22 | GPIO4 (D4), ~29 °C / ~40 % humidité validé en série |
 | 4 | WiFi + MQTT | Connexion WiFi OK (2,4 GHz), publication JSON, topic `campus/groupe/ESP32-1/data` |
 | 5 | Interface web embarquée | Serveur HTTP + LittleFS, API REST, dashboard live |
+| 6 | Stockage offline JSON | File d'attente LittleFS, enqueue si MQTT down, flush auto à la reconnexion |
 
 ## Reporté
 
@@ -41,9 +40,30 @@
 
 | # | Étape | Statut |
 |---|-------|--------|
-| 6 | Stockage offline JSON (LittleFS) | ⬜ Prochaine |
-| 7 | Sécurité + intégration Node-RED | ⬜ |
+| 7 | Sécurité + intégration Node-RED | ⬜ Prochaine |
 | 8 | Démo bout en bout | ⬜ |
+
+---
+
+## Étape 6 — Stockage offline JSON (détail)
+
+| Tâche | Statut |
+|-------|--------|
+| `storageInit()` — montage LittleFS + mutex | ✅ |
+| `storageEnqueue()` — persistance si MQTT indisponible | ✅ |
+| `storageFlush()` — retransmission auto après reconnexion | ✅ |
+| Intégration `network_task.cpp` | ✅ |
+| Mutex partagé web + storage | ✅ |
+
+**Fichier LittleFS :** `/offline_queue.jsonl` (une ligne JSON par mesure, format identique MQTT)
+
+**Comportement :**
+- MQTT déconnecté ou publication échouée → `storageEnqueue(snapshot)`
+- Reconnexion MQTT → `storageFlush()` puis publication courante
+- Fichier plein (32 Ko) → suppression de l'entrée la plus ancienne
+- Ligne corrompue → ignorée à la lecture
+
+**Logs série attendus :** `[storage] enqueue OK`, `[storage] flush OK — N message(s) republie(s)`
 
 ---
 
@@ -73,9 +93,9 @@ esp32-firmware/src/
   config.h              ← DEVICE_ID, broches, constantes publiques
   secrets.h.example     ← modèle WiFi/MQTT (copier en secrets.h)
   sensors/              ← DHT22 + tâche acquisition ✅
-  network/              ← WiFi + MQTT ✅
+  network/              ← WiFi + MQTT + flush offline ✅
   web/                  ← serveur HTTP + API REST ✅
-  storage/              ← stub (étape 6)
+  storage/              ← file d'attente JSON LittleFS ✅
   security/             ← validation JSON ✅ (base)
   supervision/          ← heap + uptime ✅
   actuators/            ← stub
@@ -144,7 +164,7 @@ Topic : `campus/<MQTT_GROUP>/ESP32-1/data`
 | Embedded Architect | ✅ |
 | Sensor Engineer | ✅ |
 | Network Engineer | ⬜ (WiFi OK, MQTT à valider bout en bout) |
-| Reliability Engineer | ⬜ |
+| Reliability Engineer | ✅ |
 | Full-Stack IoT | ⬜ (web OK, Node-RED en attente) |
 
 ---
@@ -158,3 +178,4 @@ Topic : `campus/<MQTT_GROUP>/ESP32-1/data`
 | 2026-06-15 | Implémentation WiFi + MQTT dans `network_task.cpp` |
 | 2026-06-15 | Diagnostic WiFi 5 GHz → résolu (hotspot 2,4 GHz) |
 | 2026-06-15 | Étape 5 : serveur web embarqué, API REST, dashboard `data/` |
+| 2026-06-15 | Étape 6 : stockage offline JSON LittleFS, flush MQTT automatique |

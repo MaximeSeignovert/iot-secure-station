@@ -31,3 +31,8 @@
 #define WEB_HANDLE_INTERVAL_MS 50
 #define WEB_INTERVAL_MS 10000
 #define SUPERVISION_INTERVAL_MS 10000
+
+// Stockage offline LittleFS (etape 6)
+#define STORAGE_QUEUE_PATH "/offline_queue.jsonl"
+#define STORAGE_MAX_BYTES (32 * 1024)
+#define STORAGE_MAX_LINE_BYTES 192
