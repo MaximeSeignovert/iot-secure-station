@@ -1,0 +1,9 @@
+﻿[
+    {
+        "id": "iot-secure-station-tab",
+        "type": "tab",
+        "label": "IoT Secure Station",
+        "disabled": false,
+        "info": "Flux principal de supervision de la station IoT sécurisée"
+    }
+]
