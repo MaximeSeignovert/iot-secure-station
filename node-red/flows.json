@@ -1,9 +1,421 @@
-﻿[
+[
     {
-        "id": "iot-secure-station-tab",
+        "id": "t_main",
         "type": "tab",
         "label": "IoT Secure Station",
         "disabled": false,
-        "info": "Flux principal de supervision de la station IoT sécurisée"
+        "info": "Supervision : ingest MQTT, validation JSON, stockage InfluxDB, dashboard, commandes"
+    },
+    {
+        "id": "b1",
+        "type": "mqtt-broker",
+        "name": "Mosquitto",
+        "broker": "mosquitto",
+        "port": "1883",
+        "clientid": "node-red-server",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "i1",
+        "type": "influxdb",
+        "hostname": "influxdb",
+        "port": "8086",
+        "protocol": "http",
+        "database": "iot",
+        "name": "InfluxDB",
+        "usetls": false,
+        "tls": "",
+        "influxdbVersion": "1.x",
+        "url": "http://localhost:8086",
+        "rejectUnauthorized": false
+    },
+    {
+        "id": "uitab",
+        "type": "ui_tab",
+        "name": "Supervision",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "uigrp1",
+        "type": "ui_group",
+        "name": "Mesures",
+        "tab": "uitab",
+        "order": 1,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "uigrp2",
+        "type": "ui_group",
+        "name": "Commandes",
+        "tab": "uitab",
+        "order": 2,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "n_mqttin",
+        "type": "mqtt in",
+        "z": "t_main",
+        "name": "campus/+/+/data",
+        "topic": "campus/+/+/data",
+        "qos": "1",
+        "datatype": "auto-detect",
+        "broker": "b1",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 140,
+        "y": 120,
+        "wires": [
+            [
+                "n_valid"
+            ]
+        ]
+    },
+    {
+        "id": "n_valid",
+        "type": "function",
+        "z": "t_main",
+        "name": "Valider & router",
+        "func": "let data;\ntry {\n    data = (typeof msg.payload === 'string') ? JSON.parse(msg.payload) : msg.payload;\n} catch (e) {\n    msg.error = 'JSON illisible';\n    return [null, msg];\n}\n\n// Schéma imposé : { device, ts, data:{...} }\nif (typeof data !== 'object' || data === null ||\n    typeof data.device !== 'string' ||\n    typeof data.ts !== 'number' ||\n    typeof data.data !== 'object' || data.data === null) {\n    msg.error = 'Schéma invalide';\n    msg.payload = data;\n    return [null, msg];\n}\n\n// Champs numériques uniquement\nconst fields = {};\nfor (const k in data.data) {\n    if (typeof data.data[k] === 'number' && isFinite(data.data[k])) {\n        fields[k] = data.data[k];\n    }\n}\nif (Object.keys(fields).length === 0) {\n    msg.error = 'Aucune mesure numérique';\n    return [null, msg];\n}\n\n// Timestamp d'origine -> rejeu offline correct.\n// On distingue une vraie date epoch d'un compteur millis() (boot ESP32 sans NTP).\nlet tsMs;\nif (data.ts >= 1e12) {\n    tsMs = data.ts;            // millisecondes epoch\n} else if (data.ts >= 1e9) {\n    tsMs = data.ts * 1000;     // secondes epoch -> ms\n} else {\n    tsMs = Date.now();         // ts non horodate (millis/boot) -> heure serveur\n}\n\nmsg.device = data.device;\nmsg.parsed = data;\nmsg.payload = [{\n    measurement: 'sensors',\n    fields: fields,\n    tags: { device: data.device },\n    timestamp: new Date(tsMs)\n}];\nreturn [msg, null];\n",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 120,
+        "wires": [
+            [
+                "n_influx",
+                "n_uitemp",
+                "n_uihum",
+                "n_uitext"
+            ],
+            [
+                "n_alert",
+                "n_dbg"
+            ]
+        ]
+    },
+    {
+        "id": "n_influx",
+        "type": "influxdb batch",
+        "z": "t_main",
+        "influxdb": "i1",
+        "precision": "ms",
+        "retentionPolicy": "",
+        "name": "InfluxDB iot",
+        "database": "database",
+        "precisionV18FluxV20": "ms",
+        "retentionPolicyV18Flux": "",
+        "org": "organisation",
+        "bucket": "bucket",
+        "x": 600,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "n_uitemp",
+        "type": "function",
+        "z": "t_main",
+        "name": "temp",
+        "func": "if (!msg.parsed || typeof msg.parsed.data.temp !== 'number') return null;\nmsg.payload = msg.parsed.data.temp;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 590,
+        "y": 140,
+        "wires": [
+            [
+                "n_gtemp"
+            ]
+        ]
+    },
+    {
+        "id": "n_uihum",
+        "type": "function",
+        "z": "t_main",
+        "name": "humidity",
+        "func": "if (!msg.parsed || typeof msg.parsed.data.humidity !== 'number') return null;\nmsg.payload = msg.parsed.data.humidity;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 590,
+        "y": 200,
+        "wires": [
+            [
+                "n_ghum"
+            ]
+        ]
+    },
+    {
+        "id": "n_uitext",
+        "type": "function",
+        "z": "t_main",
+        "name": "état",
+        "func": "msg.payload = msg.device + ' — ' + new Date().toLocaleTimeString('fr-FR');\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 590,
+        "y": 260,
+        "wires": [
+            [
+                "n_txt"
+            ]
+        ]
+    },
+    {
+        "id": "n_gtemp",
+        "type": "ui_gauge",
+        "z": "t_main",
+        "name": "Température",
+        "group": "uigrp1",
+        "order": 1,
+        "width": "3",
+        "height": "3",
+        "gtype": "gage",
+        "title": "Température",
+        "label": "°C",
+        "format": "{{value}}",
+        "min": "0",
+        "max": "50",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 800,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "n_ghum",
+        "type": "ui_gauge",
+        "z": "t_main",
+        "name": "Humidité",
+        "group": "uigrp1",
+        "order": 2,
+        "width": "3",
+        "height": "3",
+        "gtype": "gage",
+        "title": "Humidité",
+        "label": "%",
+        "format": "{{value}}",
+        "min": "0",
+        "max": "100",
+        "colors": [
+            "#ca3838",
+            "#00b500",
+            "#0080ff"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 800,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "n_txt",
+        "type": "ui_text",
+        "z": "t_main",
+        "group": "uigrp1",
+        "order": 3,
+        "width": "6",
+        "height": "1",
+        "name": "Dernière mesure",
+        "label": "Dernière mesure",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "className": "",
+        "x": 820,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "n_alert",
+        "type": "function",
+        "z": "t_main",
+        "name": "Alerte JSON invalide",
+        "func": "node.warn('Message rejeté: ' + msg.error);\nconst parts = (msg.topic || '').split('/');\nconst grp = parts[1] || 'g1';\nconst dev = parts[2] || 'unknown';\nmsg.topic = 'campus/' + grp + '/' + dev + '/alerts';\nmsg.qos = 1;\nmsg.payload = JSON.stringify({ error: msg.error, ts: Date.now() });\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 360,
+        "y": 320,
+        "wires": [
+            [
+                "n_mqttalert"
+            ]
+        ]
+    },
+    {
+        "id": "n_mqttalert",
+        "type": "mqtt out",
+        "z": "t_main",
+        "name": "alerts",
+        "topic": "",
+        "qos": "1",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "b1",
+        "x": 590,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "n_dbg",
+        "type": "debug",
+        "z": "t_main",
+        "name": "rejets",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 580,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "n_btnon",
+        "type": "ui_button",
+        "z": "t_main",
+        "name": "LED ON",
+        "group": "uigrp2",
+        "order": 1,
+        "width": "3",
+        "height": "1",
+        "passthru": false,
+        "label": "LED ON",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "on",
+        "payloadType": "str",
+        "topic": "led",
+        "topicType": "str",
+        "x": 140,
+        "y": 460,
+        "wires": [
+            [
+                "n_cmd"
+            ]
+        ]
+    },
+    {
+        "id": "n_btnoff",
+        "type": "ui_button",
+        "z": "t_main",
+        "name": "LED OFF",
+        "group": "uigrp2",
+        "order": 2,
+        "width": "3",
+        "height": "1",
+        "passthru": false,
+        "label": "LED OFF",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "off",
+        "payloadType": "str",
+        "topic": "led",
+        "topicType": "str",
+        "x": 140,
+        "y": 520,
+        "wires": [
+            [
+                "n_cmd"
+            ]
+        ]
+    },
+    {
+        "id": "n_cmd",
+        "type": "function",
+        "z": "t_main",
+        "name": "Construire commande",
+        "func": "// Cible par défaut : groupe g1, device esp32-1 (à adapter selon le device)\nconst cmd = msg.topic || 'led';\nconst value = msg.payload;\nmsg.topic = 'campus/g1/esp32-1/cmd';\nmsg.qos = 1;\nmsg.payload = JSON.stringify({\n    device: 'esp32-1',\n    cmd: cmd,\n    value: value\n});\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 370,
+        "y": 490,
+        "wires": [
+            [
+                "n_mqttcmd"
+            ]
+        ]
+    },
+    {
+        "id": "n_mqttcmd",
+        "type": "mqtt out",
+        "z": "t_main",
+        "name": "cmd",
+        "topic": "",
+        "qos": "1",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "b1",
+        "x": 590,
+        "y": 490,
+        "wires": []
     }
 ]

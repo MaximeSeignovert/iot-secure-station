@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#define DEVICE_ID "ESP32-1"
+#define DEVICE_ID "esp32-1"
 
 #define SERIAL_BAUD 115200
 
@@ -11,7 +11,7 @@
 #define SENSOR_INTERVAL_MS 2000
 
 // MQTT — topic : campus/<MQTT_GROUP>/<DEVICE_ID>/data
-#define MQTT_GROUP "groupe"
+#define MQTT_GROUP "g1"
 
 // Tailles de pile (bytes)
 #define TASK_SENSOR_STACK 4096
