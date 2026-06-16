@@ -1,10 +1,10 @@
-﻿[
+[
     {
         "id": "t_main",
         "type": "tab",
         "label": "IoT Secure Station",
         "disabled": false,
-        "info": "Supervision : ingest MQTT, validation JSON, stockage InfluxDB, dashboard, commandes"
+        "info": "Supervision : ingest MQTT, validation JSON, stockage InfluxDB, dashboard (jauges + historique)"
     },
     {
         "id": "b1",
@@ -54,7 +54,7 @@
     {
         "id": "uigrp1",
         "type": "ui_group",
-        "name": "Mesures",
+        "name": "Mesures en direct",
         "tab": "uitab",
         "order": 1,
         "disp": true,
@@ -62,13 +62,13 @@
         "collapse": false
     },
     {
-        "id": "uigrp2",
+        "id": "uigrp_hist",
         "type": "ui_group",
-        "name": "Commandes",
+        "name": "Historique",
         "tab": "uitab",
         "order": 2,
         "disp": true,
-        "width": "6",
+        "width": "12",
         "collapse": false
     },
     {
@@ -141,7 +141,7 @@
         "type": "function",
         "z": "t_main",
         "name": "temp",
-        "func": "if (!msg.parsed || typeof msg.parsed.data.temp !== 'number') return null;\nmsg.payload = msg.parsed.data.temp;\nreturn msg;\n",
+        "func": "if (!msg.parsed || typeof msg.parsed.data.temp !== 'number') return null;\nmsg.payload = msg.parsed.data.temp;\nmsg.topic = 'Température';\nreturn msg;\n",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
@@ -149,10 +149,11 @@
         "finalize": "",
         "libs": [],
         "x": 590,
-        "y": 140,
+        "y": 160,
         "wires": [
             [
-                "n_gtemp"
+                "n_gtemp",
+                "n_chart_temp"
             ]
         ]
     },
@@ -161,7 +162,7 @@
         "type": "function",
         "z": "t_main",
         "name": "humidity",
-        "func": "if (!msg.parsed || typeof msg.parsed.data.humidity !== 'number') return null;\nmsg.payload = msg.parsed.data.humidity;\nreturn msg;\n",
+        "func": "if (!msg.parsed || typeof msg.parsed.data.humidity !== 'number') return null;\nmsg.payload = msg.parsed.data.humidity;\nmsg.topic = 'Humidité';\nreturn msg;\n",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
@@ -169,10 +170,11 @@
         "finalize": "",
         "libs": [],
         "x": 590,
-        "y": 200,
+        "y": 240,
         "wires": [
             [
-                "n_ghum"
+                "n_ghum",
+                "n_chart_hum"
             ]
         ]
     },
@@ -189,7 +191,7 @@
         "finalize": "",
         "libs": [],
         "x": 590,
-        "y": 260,
+        "y": 320,
         "wires": [
             [
                 "n_txt"
@@ -220,8 +222,8 @@
         "seg2": "",
         "diff": false,
         "className": "",
-        "x": 800,
-        "y": 140,
+        "x": 820,
+        "y": 160,
         "wires": []
     },
     {
@@ -248,8 +250,8 @@
         "seg2": "",
         "diff": false,
         "className": "",
-        "x": 800,
-        "y": 200,
+        "x": 820,
+        "y": 240,
         "wires": []
     },
     {
@@ -265,9 +267,97 @@
         "format": "{{msg.payload}}",
         "layout": "row-spread",
         "className": "",
-        "x": 820,
-        "y": 260,
+        "x": 840,
+        "y": 320,
         "wires": []
+    },
+    {
+        "id": "n_chart_temp",
+        "type": "ui_chart",
+        "z": "t_main",
+        "name": "Historique température",
+        "group": "uigrp_hist",
+        "order": 1,
+        "width": "12",
+        "height": "5",
+        "label": "Température (°C)",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "En attente de données…",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": "1",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#ca3838",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 840,
+        "y": 400,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "n_chart_hum",
+        "type": "ui_chart",
+        "z": "t_main",
+        "name": "Historique humidité",
+        "group": "uigrp_hist",
+        "order": 2,
+        "width": "12",
+        "height": "5",
+        "label": "Humidité (%)",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "En attente de données…",
+        "dot": false,
+        "ymin": "0",
+        "ymax": "100",
+        "removeOlder": "1",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#0080ff",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 840,
+        "y": 460,
+        "wires": [
+            []
+        ]
     },
     {
         "id": "n_alert",
@@ -304,7 +394,7 @@
         "expiry": "",
         "broker": "b1",
         "x": 590,
-        "y": 320,
+        "y": 360,
         "wires": []
     },
     {
@@ -321,157 +411,7 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 580,
-        "y": 380,
-        "wires": []
-    },
-    {
-        "id": "n_btnon",
-        "type": "ui_button",
-        "z": "t_main",
-        "name": "LED ON",
-        "group": "uigrp2",
-        "order": 1,
-        "width": "3",
-        "height": "1",
-        "passthru": false,
-        "label": "LED ON",
-        "tooltip": "",
-        "color": "",
-        "bgcolor": "",
-        "className": "",
-        "icon": "",
-        "payload": "on",
-        "payloadType": "str",
-        "topic": "led",
-        "topicType": "str",
-        "x": 140,
-        "y": 460,
-        "wires": [
-            [
-                "n_cmd"
-            ]
-        ]
-    },
-    {
-        "id": "n_btnoff",
-        "type": "ui_button",
-        "z": "t_main",
-        "name": "LED OFF",
-        "group": "uigrp2",
-        "order": 2,
-        "width": "3",
-        "height": "1",
-        "passthru": false,
-        "label": "LED OFF",
-        "tooltip": "",
-        "color": "",
-        "bgcolor": "",
-        "className": "",
-        "icon": "",
-        "payload": "off",
-        "payloadType": "str",
-        "topic": "led",
-        "topicType": "str",
-        "x": 140,
-        "y": 520,
-        "wires": [
-            [
-                "n_cmd"
-            ]
-        ]
-    },
-    {
-        "id": "n_relayon",
-        "type": "ui_button",
-        "z": "t_main",
-        "name": "RELAY ON",
-        "group": "uigrp2",
-        "order": 3,
-        "width": "3",
-        "height": "1",
-        "passthru": false,
-        "label": "RELAY ON",
-        "tooltip": "",
-        "color": "",
-        "bgcolor": "",
-        "className": "",
-        "icon": "",
-        "payload": "on",
-        "payloadType": "str",
-        "topic": "relay",
-        "topicType": "str",
-        "x": 150,
-        "y": 570,
-        "wires": [
-            [
-                "n_cmd"
-            ]
-        ]
-    },
-    {
-        "id": "n_relayoff",
-        "type": "ui_button",
-        "z": "t_main",
-        "name": "RELAY OFF",
-        "group": "uigrp2",
-        "order": 4,
-        "width": "3",
-        "height": "1",
-        "passthru": false,
-        "label": "RELAY OFF",
-        "tooltip": "",
-        "color": "",
-        "bgcolor": "",
-        "className": "",
-        "icon": "",
-        "payload": "off",
-        "payloadType": "str",
-        "topic": "relay",
-        "topicType": "str",
-        "x": 150,
-        "y": 620,
-        "wires": [
-            [
-                "n_cmd"
-            ]
-        ]
-    },
-    {
-        "id": "n_cmd",
-        "type": "function",
-        "z": "t_main",
-        "name": "Construire commande",
-        "func": "// Cible par défaut : groupe g1, device esp32-1 (à adapter selon le device)\nconst cmd = (msg.topic || 'led').toString();\nconst value = (msg.payload || 'off').toString();\nlet action = '';\nif (cmd === 'led' && value === 'on') action = 'led_on';\nelse if (cmd === 'led' && value === 'off') action = 'led_off';\nelse if (cmd === 'relay' && value === 'on') action = 'relay_on';\nelse if (cmd === 'relay' && value === 'off') action = 'relay_off';\n\nmsg.topic = 'campus/g1/esp32-1/cmd';\nmsg.qos = 1;\nmsg.payload = JSON.stringify({\n    device: 'esp32-1',\n    action: action,\n    cmd: cmd,\n    value: value\n});\nreturn msg;\n",
-        "outputs": 1,
-        "timeout": "",
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 370,
-        "y": 490,
-        "wires": [
-            [
-                "n_mqttcmd"
-            ]
-        ]
-    },
-    {
-        "id": "n_mqttcmd",
-        "type": "mqtt out",
-        "z": "t_main",
-        "name": "cmd",
-        "topic": "",
-        "qos": "1",
-        "retain": "",
-        "respTopic": "",
-        "contentType": "",
-        "userProps": "",
-        "correl": "",
-        "expiry": "",
-        "broker": "b1",
-        "x": 590,
-        "y": 490,
+        "y": 420,
         "wires": []
     }
 ]
