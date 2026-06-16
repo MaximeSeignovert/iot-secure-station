@@ -22,7 +22,7 @@ Notre équipe conçoit le **firmware ESP32** et l'**infrastructure de supervisio
 | Rôle | Responsabilités principales |
 |------|----------------------------|
 | **Développeur embarqué** | Firmware PlatformIO, FreeRTOS, capteurs/actionneurs, stockage offline, sécurité locale, interface web embarquée |
-| **Développeur infra & supervision** | Docker, MQTT, Node-RED, base NoSQL, dashboard, Grafana (bonus), documentation et démo |
+| **Développeur infra & supervision** | Docker, MQTT, Node-RED, base NoSQL, dashboard, documentation et démo |
 
 ### Répartition suggérée
 
@@ -39,7 +39,6 @@ Notre équipe conçoit le **firmware ESP32** et l'**infrastructure de supervisio
 - `docker/` — Mosquitto, Node-RED, base NoSQL
 - `node-red/` — réception MQTT, stockage, dashboard, envoi de commandes
 - `docs/` — architecture, rapport, captures
-- Bonus Grafana : historisation temporelle, alertes
 
 Les deux développeurs valident ensemble l'intégration bout en bout (MQTT, mode offline, démo).
 
@@ -201,10 +200,6 @@ iot-secure-station/
 | Full-Stack IoT | Web + Node-RED |
 | Reliability Engineer | survit aux pannes |
 | Performance Engineer | optimisation mémoire |
-
-### Bonus — Grafana
-
-Historiser les données dans une base temporelle compatible Grafana, produire un dashboard (mesures, actionneurs, métrique de robustesse) et configurer une alerte (absence de données ou anomalie capteur).
 
 ## Prérequis
 
