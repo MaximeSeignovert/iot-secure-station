@@ -27,7 +27,7 @@ const char kIndexHtml[] PROGMEM = R"webembed0(﻿<!DOCTYPE html>
             </div>
             <div class="header-meta">
                 <span id="device-id">—</span>
-                <span id="ui-version">Dashboard v3</span>
+                <span id="ui-version">Dashboard v4</span>
                 <span id="last-update">Mise à jour…</span>
             </div>
         </header>
@@ -90,6 +90,20 @@ const char kIndexHtml[] PROGMEM = R"webembed0(﻿<!DOCTYPE html>
             </div>
         </section>
 
+        <section class="card chart-card">
+            <div class="section-head">
+                <h2>Historique capteurs</h2>
+                <span class="chart-legend">
+                    <span class="legend-item legend-temp">Température</span>
+                    <span class="legend-item legend-hum">Humidité</span>
+                </span>
+            </div>
+            <p class="hint">Dernières mesures (rafraîchissement toutes les 2 s)</p>
+            <div class="chart-wrap">
+                <canvas id="sensor-chart" aria-label="Graphique température et humidité"></canvas>
+            </div>
+        </section>
+
         <section class="card actuators-card">
             <div class="section-head">
                 <h2>LED</h2>
@@ -146,10 +160,166 @@ const char kIndexHtml[] PROGMEM = R"webembed0(﻿<!DOCTYPE html>
 )webembed0";
 
 const char kAppJs[] PROGMEM = R"webembed0(﻿const REFRESH_MS = 2000;
+const HISTORY_MAX = 40;
 
 const el = (id) => document.getElementById(id);
 
 let thresholdSaveTimer = null;
+
+const sensorHistory = {
+    labels: [],
+    temp: [],
+    humidity: [],
+};
+
+const CHART_COLORS = {
+    temp: '#f97316',
+    hum: '#38bdf8',
+    grid: 'rgba(148, 163, 184, 0.15)',
+    axis: '#64748b',
+    text: '#94a3b8',
+};
+
+function pushSensorHistory(data) {
+    if (!data.valid) {
+        return;
+    }
+
+    const label = new Date().toLocaleTimeString('fr-FR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+    });
+
+    sensorHistory.labels.push(label);
+    sensorHistory.temp.push(Number(data.temp));
+    sensorHistory.humidity.push(Number(data.humidity));
+
+    if (sensorHistory.labels.length > HISTORY_MAX) {
+        sensorHistory.labels.shift();
+        sensorHistory.temp.shift();
+        sensorHistory.humidity.shift();
+    }
+
+    drawSensorChart();
+}
+
+function chartRange(values, fallbackMin, fallbackMax, padding = 2) {
+    if (!values.length) {
+        return { min: fallbackMin, max: fallbackMax };
+    }
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    if (min === max) {
+        return { min: min - padding, max: max + padding };
+    }
+    return { min: min - padding, max: max + padding };
+}
+
+function drawSensorChart() {
+    const canvas = el('sensor-chart');
+    if (!canvas) {
+        return;
+    }
+
+    const wrap = canvas.parentElement;
+    const width = Math.max(wrap.clientWidth - 16, 280);
+    const height = Math.max(wrap.clientHeight - 16, 180);
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    const pad = { top: 14, right: 44, bottom: 28, left: 44 };
+    const plotW = width - pad.left - pad.right;
+    const plotH = height - pad.top - pad.bottom;
+
+    ctx.fillStyle = CHART_COLORS.text;
+    ctx.font = '11px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+
+    if (sensorHistory.labels.length < 2) {
+        ctx.fillText(
+            'En attente de mesures…',
+            pad.left + plotW / 2,
+            pad.top + plotH / 2,
+        );
+        return;
+    }
+
+    const tempRange = chartRange(sensorHistory.temp, 15, 35, 1);
+    const humRange = chartRange(sensorHistory.humidity, 30, 70, 2);
+    const count = sensorHistory.labels.length;
+
+    const xAt = (index) =>
+        pad.left + (index / (count - 1)) * plotW;
+    const yTemp = (value) =>
+        pad.top + (1 - (value - tempRange.min) / (tempRange.max - tempRange.min)) * plotH;
+    const yHum = (value) =>
+        pad.top + (1 - (value - humRange.min) / (humRange.max - humRange.min)) * plotH;
+
+    ctx.strokeStyle = CHART_COLORS.grid;
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i += 1) {
+        const y = pad.top + (i / 4) * plotH;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(pad.left + plotW, y);
+        ctx.stroke();
+    }
+
+    ctx.fillStyle = CHART_COLORS.axis;
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 4; i += 1) {
+        const ratio = 1 - i / 4;
+        const tempVal = tempRange.min + ratio * (tempRange.max - tempRange.min);
+        const humVal = humRange.min + ratio * (humRange.max - humRange.min);
+        const y = pad.top + (i / 4) * plotH + 4;
+        ctx.fillStyle = CHART_COLORS.temp;
+        ctx.fillText(`${tempVal.toFixed(0)}°`, pad.left - 6, y);
+        ctx.fillStyle = CHART_COLORS.hum;
+        ctx.textAlign = 'left';
+        ctx.fillText(`${humVal.toFixed(0)}%`, pad.left + plotW + 6, y);
+        ctx.textAlign = 'right';
+    }
+
+    const drawLine = (values, yFn, color) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        values.forEach((value, index) => {
+            const x = xAt(index);
+            const y = yFn(value);
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        ctx.stroke();
+    };
+
+    drawLine(sensorHistory.temp, yTemp, CHART_COLORS.temp);
+    drawLine(sensorHistory.humidity, yHum, CHART_COLORS.hum);
+
+    ctx.fillStyle = CHART_COLORS.text;
+    ctx.textAlign = 'center';
+    const tickIndexes = [0, Math.floor((count - 1) / 2), count - 1];
+    tickIndexes.forEach((index) => {
+        ctx.fillText(
+            sensorHistory.labels[index],
+            xAt(index),
+            height - 8,
+        );
+    });
+}
 
 function setBadge(element, connected, onLabel, offLabel) {
     element.textContent = connected ? onLabel : offLabel;
@@ -284,6 +454,7 @@ async function refreshSensors() {
     el('sensor-pot').textContent =
         data.valid ? Number(data.potentiometer ?? 0).toFixed(0) : '—';
     el('sensor-button').textContent = data.buttonPressed ? 'Appuyé' : 'Relâché';
+    pushSensorHistory(data);
 }
 
 async function refreshConfig() {
@@ -382,6 +553,10 @@ document.addEventListener('DOMContentLoaded', () => {
             scheduleThresholdSave(slider.value);
         });
     }
+
+    window.addEventListener('resize', () => {
+        drawSensorChart();
+    });
 
     refreshAll();
     setInterval(refreshAll, REFRESH_MS);
@@ -549,6 +724,51 @@ dd {
     font-size: 1rem;
     color: var(--muted);
     margin-left: 0.25rem;
+}
+
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--muted);
+}
+
+.legend-item::before {
+    content: "";
+    width: 1.25rem;
+    height: 3px;
+    border-radius: 999px;
+}
+
+.legend-temp::before {
+    background: #f97316;
+}
+
+.legend-hum::before {
+    background: #38bdf8;
+}
+
+.chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 220px;
+    background: var(--tile);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 0.5rem;
+}
+
+#sensor-chart {
+    display: block;
+    width: 100%;
+    height: 100%;
 }
 
 .hint {
