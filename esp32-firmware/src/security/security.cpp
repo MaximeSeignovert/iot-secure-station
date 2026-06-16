@@ -13,7 +13,8 @@
 namespace {
 
 bool isAllowedAction(const char* action) {
-    return strcmp(action, "led_on") == 0 || strcmp(action, "led_off") == 0;
+    return strcmp(action, "led_on") == 0 || strcmp(action, "led_off") == 0 ||
+           strcmp(action, "relay_on") == 0 || strcmp(action, "relay_off") == 0;
 }
 
 bool isPrintableField(const char* value, size_t maxLen) {
@@ -42,7 +43,7 @@ void securityInit() {
     deviceConfigInit();
 
     if (API_TOKEN[0] == '\0') {
-        Serial.println("[security] ATTENTION: API_TOKEN vide — API non protegee");
+        Serial.println("[security] API locale sans jeton (dashboard ouvert)");
     } else {
         Serial.println("[security] auth API active");
     }

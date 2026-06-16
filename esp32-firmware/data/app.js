@@ -1,15 +1,8 @@
 ﻿const REFRESH_MS = 2000;
-const API_TOKEN_KEY = 'iot-api-token';
 
 const el = (id) => document.getElementById(id);
 
-function getApiToken() {
-    return sessionStorage.getItem(API_TOKEN_KEY) || '';
-}
-
-function setApiToken(value) {
-    sessionStorage.setItem(API_TOKEN_KEY, value);
-}
+let thresholdSaveTimer = null;
 
 function setBadge(element, connected, onLabel, offLabel) {
     element.textContent = connected ? onLabel : offLabel;
@@ -30,20 +23,17 @@ function formatUptime(seconds) {
     return `${s}s`;
 }
 
+function formatTemp(value) {
+    return `${Number(value).toFixed(1).replace('.', ',')} °C`;
+}
+
 async function fetchJson(url, options = {}) {
-    const headers = {
-        Accept: 'application/json',
-        ...(options.headers || {}),
-    };
-
-    const token = getApiToken();
-    if (token) {
-        headers['X-Api-Token'] = token;
-    }
-
     const response = await fetch(url, {
         ...options,
-        headers,
+        headers: {
+            Accept: 'application/json',
+            ...(options.headers || {}),
+        },
     });
 
     if (!response.ok) {
@@ -51,6 +41,54 @@ async function fetchJson(url, options = {}) {
     }
 
     return response.json();
+}
+
+function updateThresholdUi(data, options = {}) {
+    const { syncSlider = true } = options;
+    const slider = el('temp-threshold-slider');
+    if (!slider) {
+        return;
+    }
+    const value = Number(data.threshold ?? slider.value);
+
+    slider.min = data.min ?? slider.min;
+    slider.max = data.max ?? slider.max;
+    if (syncSlider && document.activeElement !== slider) {
+        slider.value = value;
+    }
+    el('threshold-value').textContent = formatTemp(
+        document.activeElement === slider ? slider.value : value,
+    );
+
+    const auto = data.auto ?? true;
+    el('threshold-mode').textContent = auto
+        ? `Mode auto : LED si température > ${formatTemp(value)}`
+        : 'Mode manuel (boutons Allumer / Éteindre)';
+
+    if (typeof data.led === 'boolean') {
+        setBadge(el('led-badge'), data.led, 'Allumée', 'Éteinte');
+    }
+}
+
+async function saveThreshold(threshold) {
+    const data = await fetchJson('/api/threshold', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ threshold: Number(threshold), auto: true }),
+    });
+
+    updateThresholdUi(data);
+    el('actuator-result').textContent =
+        `Seuil ${formatTemp(data.threshold)} — mode auto actif`;
+}
+
+function scheduleThresholdSave(value) {
+    clearTimeout(thresholdSaveTimer);
+    thresholdSaveTimer = setTimeout(() => {
+        saveThreshold(value).catch((error) => {
+            el('actuator-result').textContent = error.message;
+        });
+    }, 300);
 }
 
 async function refreshStatus() {
@@ -67,6 +105,12 @@ async function refreshStatus() {
     el('mqtt-broker').textContent =
         data.mqtt?.broker ? `${data.mqtt.broker}:${data.mqtt.port}` : '—';
     el('mqtt-topic').textContent = data.mqtt?.topic || '—';
+    el('mqtt-cmd-topic').textContent = data.mqtt?.cmdTopic || '—';
+    el('mqtt-qos').textContent = data.mqtt?.qos ?? '—';
+    el('mqtt-latency').textContent =
+        typeof data.mqtt?.publishLatencyMs === 'number'
+            ? `${data.mqtt.publishLatencyMs} ms`
+            : '—';
     el('mqtt-user').textContent = data.mqtt?.user || '—';
 
     el('sys-uptime').textContent = formatUptime(data.uptime ?? 0);
@@ -74,6 +118,12 @@ async function refreshStatus() {
         typeof data.heapFree === 'number'
             ? `${Math.round(data.heapFree / 1024)} Ko`
             : '—';
+
+    updateThresholdUi({
+        threshold: data.actuators?.tempThreshold,
+        auto: data.actuators?.autoLed,
+        led: data.actuators?.led,
+    }, { syncSlider: false });
 }
 
 async function refreshSensors() {
@@ -84,6 +134,9 @@ async function refreshSensors() {
         data.valid ? Number(data.temp).toFixed(1) : '—';
     el('sensor-hum').textContent =
         data.valid ? Number(data.humidity).toFixed(1) : '—';
+    el('sensor-pot').textContent =
+        data.valid ? Number(data.potentiometer ?? 0).toFixed(0) : '—';
+    el('sensor-button').textContent = data.buttonPressed ? 'Appuyé' : 'Relâché';
 }
 
 async function refreshConfig() {
@@ -94,11 +147,11 @@ async function refreshConfig() {
     el('cfg-user-input').value = data.user || '';
     el('cfg-topic').textContent = data.topic || '—';
     el('config-note').textContent = data.note || '';
+}
 
-    const tokenInput = el('api-token-input');
-    if (!tokenInput.value) {
-        tokenInput.value = getApiToken();
-    }
+async function refreshThreshold() {
+    const data = await fetchJson('/api/threshold');
+    updateThresholdUi(data);
 }
 
 async function saveConfig(event) {
@@ -106,9 +159,6 @@ async function saveConfig(event) {
 
     const result = el('config-result');
     result.textContent = 'Enregistrement…';
-
-    const token = el('api-token-input').value.trim();
-    setApiToken(token);
 
     const payload = {
         broker: el('cfg-broker-input').value.trim(),
@@ -141,7 +191,10 @@ async function sendActuator(action) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action }),
         });
-        result.textContent = JSON.stringify(data, null, 2);
+        setBadge(el('led-badge'), data.led, 'Allumée', 'Éteinte');
+        el('threshold-mode').textContent =
+            'Mode manuel (boutons Allumer / Éteindre)';
+        result.textContent = data.led ? 'LED allumée (manuel)' : 'LED éteinte (manuel)';
     } catch (error) {
         result.textContent = error.message;
     }
@@ -149,7 +202,12 @@ async function sendActuator(action) {
 
 async function refreshAll() {
     try {
-        await Promise.all([refreshStatus(), refreshSensors(), refreshConfig()]);
+        await Promise.all([
+            refreshStatus(),
+            refreshSensors(),
+            refreshConfig(),
+            refreshThreshold(),
+        ]);
         el('last-update').textContent =
             `Mise à jour ${new Date().toLocaleTimeString('fr-FR')}`;
     } catch (error) {
@@ -165,6 +223,19 @@ document.querySelectorAll('[data-action]').forEach((button) => {
 
 document.addEventListener('DOMContentLoaded', () => {
     el('config-form').addEventListener('submit', saveConfig);
+
+    const slider = el('temp-threshold-slider');
+    if (slider) {
+        slider.addEventListener('input', () => {
+            el('threshold-value').textContent = formatTemp(slider.value);
+            el('threshold-mode').textContent =
+                `Mode auto : LED si température > ${formatTemp(slider.value)}`;
+        });
+        slider.addEventListener('change', () => {
+            scheduleThresholdSave(slider.value);
+        });
+    }
+
     refreshAll();
     setInterval(refreshAll, REFRESH_MS);
 });

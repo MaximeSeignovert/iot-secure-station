@@ -1,6 +1,7 @@
 ﻿#include "supervision_task.h"
 
 #include "../config.h"
+#include "../network/network_task.h"
 
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
@@ -13,10 +14,14 @@ static void supervisionTask(void* parameter) {
     for (;;) {
         const uint32_t uptimeSec = millis() / 1000;
         const uint32_t heapFree = ESP.getFreeHeap();
+        NetworkStatus network;
+        networkGetStatus(network);
 
-        Serial.printf("[supervision] uptime=%lus heap_free=%u bytes\n",
+        Serial.printf("[supervision] uptime=%lus heap_free=%u bytes mqtt=%d latence=%ums\n",
                       static_cast<unsigned long>(uptimeSec),
-                      heapFree);
+                      heapFree,
+                      network.mqttConnected,
+                      network.publishLatencyMs);
 
         vTaskDelay(pdMS_TO_TICKS(SUPERVISION_INTERVAL_MS));
     }

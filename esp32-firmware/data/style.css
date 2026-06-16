@@ -219,6 +219,31 @@ button:hover {
     background: #2563eb;
 }
 
+.slider-label {
+    display: grid;
+    gap: 0.65rem;
+    margin-bottom: 0.75rem;
+}
+
+.slider-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.slider-head strong {
+    color: var(--accent);
+    font-size: 1.1rem;
+}
+
+input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
 .result {
     background: var(--tile);
     border: 1px solid var(--panel-border);

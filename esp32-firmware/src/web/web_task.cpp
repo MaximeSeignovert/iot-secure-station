@@ -1,12 +1,13 @@
 ﻿#include "web_task.h"
+#include "web_assets.h"
 
+#include "../actuators/actuators.h"
 #include "../config.h"
 #include "../network/network_task.h"
 #include "../security/device_config.h"
 #include "../security/security.h"
 #include "../sensors/sensor_data.h"
 #include "../secrets.h"
-#include "../storage/storage.h"
 
 #ifndef API_TOKEN
 #define API_TOKEN ""
@@ -14,7 +15,6 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <LittleFS.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <freertos/FreeRTOS.h>
@@ -38,33 +38,40 @@ void sendError(int code, const char* message) {
     sendJson(code, doc);
 }
 
-bool requireApiAuth() {
-    if (securityAuthorizeApi(g_server.header("X-Api-Token").c_str())) {
-        return true;
+bool serveWebAsset(const char* path) {
+    WebAsset asset;
+    if (!webAssetFind(path, asset)) {
+        return false;
     }
 
-    sendError(401, "non autorise");
-    return false;
+    g_server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    g_server.send_P(200, asset.contentType, asset.data);
+    return true;
 }
 
-bool serveStaticFile(const char* path, const char* contentType) {
-    storageFsLock();
+String staticPath(const String& uri) {
+    const int query = uri.indexOf('?');
+    return query >= 0 ? uri.substring(0, query) : uri;
+}
 
-    if (!LittleFS.exists(path)) {
-        storageFsUnlock();
-        return false;
+void handleNotFound() {
+    const String path = staticPath(g_server.uri());
+
+    if (path == "/" || path == "/index.html") {
+        if (serveWebAsset("/index.html")) {
+            return;
+        }
+    } else if (path == "/style.css") {
+        if (serveWebAsset("/style.css")) {
+            return;
+        }
+    } else if (path == "/app.js") {
+        if (serveWebAsset("/app.js")) {
+            return;
+        }
     }
 
-    File file = LittleFS.open(path, "r");
-    if (!file) {
-        storageFsUnlock();
-        return false;
-    }
-
-    g_server.streamFile(file, contentType);
-    file.close();
-    storageFsUnlock();
-    return true;
+    sendError(404, "ressource introuvable");
 }
 
 void handleApiStatus() {
@@ -74,6 +81,7 @@ void handleApiStatus() {
     JsonDocument doc;
     doc["device"] = DEVICE_ID;
     doc["group"] = MQTT_GROUP;
+    doc["uiVersion"] = 3;
     doc["uptime"] = millis() / 1000;
     doc["heapFree"] = ESP.getFreeHeap();
 
@@ -82,16 +90,27 @@ void handleApiStatus() {
     wifi["ssid"] = network.ssid;
     wifi["ip"] = network.ip;
     wifi["rssi"] = network.rssi;
+    wifi["apIp"] = WiFi.softAPIP().toString();
 
     JsonObject mqtt = doc["mqtt"].to<JsonObject>();
     mqtt["connected"] = network.mqttConnected;
     mqtt["broker"] = network.mqttBroker;
     mqtt["port"] = network.mqttPort;
     mqtt["topic"] = network.mqttTopic;
+    mqtt["cmdTopic"] = network.mqttCmdTopic;
+    mqtt["qos"] = network.mqttQos;
+    mqtt["publishLatencyMs"] = network.publishLatencyMs;
+    mqtt["lastPublishTs"] = network.lastPublishTs;
 
     DeviceMqttConfig mqttConfig;
     deviceConfigGetMqtt(mqttConfig);
     mqtt["user"] = mqttConfig.user;
+
+    JsonObject actuators = doc["actuators"].to<JsonObject>();
+    actuators["led"] = actuatorsLedState();
+    actuators["relay"] = actuatorsRelayState();
+    actuators["tempThreshold"] = roundf(actuatorsGetTempThreshold() * 10.0f) / 10.0f;
+    actuators["autoLed"] = actuatorsIsAutoLedEnabled();
 
     sendJson(200, doc);
 }
@@ -107,8 +126,11 @@ void handleApiSensors() {
     doc["device"] = DEVICE_ID;
     doc["ts"] = snapshot.timestamp;
     doc["valid"] = snapshot.valid;
+    doc["outlier"] = snapshot.outlier;
     doc["temp"] = roundf(snapshot.temperature * 10.0f) / 10.0f;
     doc["humidity"] = roundf(snapshot.humidity * 10.0f) / 10.0f;
+    doc["potentiometer"] = roundf(snapshot.potentiometerPct);
+    doc["buttonPressed"] = snapshot.buttonPressed;
 
     sendJson(200, doc);
 }
@@ -125,7 +147,7 @@ void handleApiConfigGet() {
     doc["user"] = mqttConfig.user;
     doc["topic"] = String("campus/") + MQTT_GROUP + "/" + DEVICE_ID + "/data";
     doc["editable"] = true;
-    doc["authRequired"] = API_TOKEN[0] != '\0';
+    doc["authRequired"] = false;
     doc["persisted"] = mqttConfig.fromNvs;
     doc["note"] =
         mqttConfig.fromNvs
@@ -136,10 +158,6 @@ void handleApiConfigGet() {
 }
 
 void handleApiConfigPost() {
-    if (!requireApiAuth()) {
-        return;
-    }
-
     if (!g_server.hasArg("plain")) {
         sendError(400, "corps JSON manquant");
         return;
@@ -171,10 +189,6 @@ void handleApiConfigPost() {
 }
 
 void handleApiActuatorsPost() {
-    if (!requireApiAuth()) {
-        return;
-    }
-
     if (!g_server.hasArg("plain")) {
         sendError(400, "corps JSON manquant");
         return;
@@ -189,32 +203,76 @@ void handleApiActuatorsPost() {
         return;
     }
 
+    const char* action = doc["action"];
+    if (!actuatorsApplyCommand(action)) {
+        sendError(400, "action non supportee");
+        return;
+    }
+
     JsonDocument response;
     response["ok"] = true;
-    response["action"] = doc["action"].as<const char*>();
-    response["status"] = "stub — actionneurs non cables (etape 3 reportee)";
+    response["action"] = action;
+    response["led"] = actuatorsLedState();
+    response["relay"] = actuatorsRelayState();
+    response["status"] = "commande appliquee";
 
     sendJson(200, response);
 }
 
-void handleNotFound() {
-    const String& uri = g_server.uri();
+void handleApiThresholdGet() {
+    SensorSnapshot snapshot;
+    sensorDataGet(snapshot);
 
-    if (uri == "/" || uri == "/index.html") {
-        if (serveStaticFile("/index.html", "text/html")) {
-            return;
-        }
-    } else if (uri == "/style.css") {
-        if (serveStaticFile("/style.css", "text/css")) {
-            return;
-        }
-    } else if (uri == "/app.js") {
-        if (serveStaticFile("/app.js", "application/javascript")) {
-            return;
-        }
+    JsonDocument doc;
+    doc["threshold"] = roundf(actuatorsGetTempThreshold() * 10.0f) / 10.0f;
+    doc["min"] = TEMP_LED_THRESHOLD_MIN;
+    doc["max"] = TEMP_LED_THRESHOLD_MAX;
+    doc["auto"] = actuatorsIsAutoLedEnabled();
+    doc["led"] = actuatorsLedState();
+    if (snapshot.valid) {
+        doc["temp"] = roundf(snapshot.temperature * 10.0f) / 10.0f;
+    }
+    doc["rule"] = "LED allumee si temperature > seuil";
+
+    sendJson(200, doc);
+}
+
+void handleApiThresholdPost() {
+    if (!g_server.hasArg("plain")) {
+        sendError(400, "corps JSON manquant");
+        return;
     }
 
-    sendError(404, "ressource introuvable");
+    JsonDocument doc;
+    const DeserializationError err =
+        deserializeJson(doc, g_server.arg("plain"));
+
+    if (err || (!doc["threshold"].is<float>() && !doc["threshold"].is<int>())) {
+        sendError(400, "seuil invalide");
+        return;
+    }
+
+    const float threshold = doc["threshold"].as<float>();
+    if (threshold < TEMP_LED_THRESHOLD_MIN || threshold > TEMP_LED_THRESHOLD_MAX) {
+        sendError(400, "seuil hors plage");
+        return;
+    }
+
+    const bool autoEnabled = doc["auto"] | true;
+    actuatorsSetTempThreshold(threshold, autoEnabled, /*persist=*/true);
+
+    SensorSnapshot snapshot;
+    if (sensorDataGet(snapshot) && snapshot.valid) {
+        actuatorsApplyTemperatureRule(snapshot.temperature, true);
+    }
+
+    JsonDocument response;
+    response["ok"] = true;
+    response["threshold"] = roundf(actuatorsGetTempThreshold() * 10.0f) / 10.0f;
+    response["auto"] = actuatorsIsAutoLedEnabled();
+    response["led"] = actuatorsLedState();
+
+    sendJson(200, response);
 }
 
 void startWebServer() {
@@ -223,6 +281,8 @@ void startWebServer() {
     g_server.on("/api/config", HTTP_GET, handleApiConfigGet);
     g_server.on("/api/config", HTTP_POST, handleApiConfigPost);
     g_server.on("/api/actuators", HTTP_POST, handleApiActuatorsPost);
+    g_server.on("/api/threshold", HTTP_GET, handleApiThresholdGet);
+    g_server.on("/api/threshold", HTTP_POST, handleApiThresholdPost);
     g_server.onNotFound(handleNotFound);
 
     g_server.begin();
@@ -236,16 +296,17 @@ void webTask(void* parameter) {
     (void)parameter;
     Serial.println("[web] task started");
 
+    while (WiFi.getMode() == WIFI_OFF) {
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+
+    if (!g_serverStarted) {
+        startWebServer();
+    }
+
     for (;;) {
-        if (WiFi.status() == WL_CONNECTED) {
-            if (!g_serverStarted) {
-                startWebServer();
-            }
+        if (g_serverStarted) {
             g_server.handleClient();
-        } else if (g_serverStarted) {
-            g_server.stop();
-            g_serverStarted = false;
-            Serial.println("[web] serveur HTTP arrete (WiFi perdu)");
         }
 
         vTaskDelay(pdMS_TO_TICKS(WEB_HANDLE_INTERVAL_MS));

@@ -208,7 +208,8 @@ size_t storageFlush(StoragePublishCallback publish) {
 
         JsonDocument doc;
         const DeserializationError err = deserializeJson(doc, line);
-        if (err || !doc["device"].is<const char*>() || !doc["ts"].is<unsigned long>() ||
+        if (err || !doc["device"].is<const char*>() ||
+            (!doc["ts"].is<uint64_t>() && !doc["ts"].is<unsigned long>() && !doc["ts"].is<unsigned long long>()) ||
             !doc["data"].is<JsonObject>()) {
             ++corrupted;
             Serial.println("[storage] ligne corrompue ignoree");

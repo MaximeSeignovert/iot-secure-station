@@ -15,6 +15,7 @@
             </div>
             <div class="header-meta">
                 <span id="device-id">—</span>
+                <span id="ui-version">Dashboard v3</span>
                 <span id="last-update">Mise à jour…</span>
             </div>
         </header>
@@ -36,6 +37,9 @@
                 <dl>
                     <div><dt>Broker</dt><dd id="mqtt-broker">—</dd></div>
                     <div><dt>Topic</dt><dd id="mqtt-topic">—</dd></div>
+                    <div><dt>Topic cmd</dt><dd id="mqtt-cmd-topic">—</dd></div>
+                    <div><dt>QoS</dt><dd id="mqtt-qos">—</dd></div>
+                    <div><dt>Latence pub</dt><dd id="mqtt-latency">—</dd></div>
                     <div><dt>Utilisateur</dt><dd id="mqtt-user">—</dd></div>
                 </dl>
             </article>
@@ -63,7 +67,37 @@
                     <p class="sensor-label">Humidité</p>
                     <p class="sensor-value"><span id="sensor-hum">—</span><small>%</small></p>
                 </div>
+                <div class="sensor-tile">
+                    <p class="sensor-label">Potentiomètre</p>
+                    <p class="sensor-value"><span id="sensor-pot">—</span><small>%</small></p>
+                </div>
+                <div class="sensor-tile">
+                    <p class="sensor-label">Bouton</p>
+                    <p class="sensor-value"><span id="sensor-button">—</span></p>
+                </div>
             </div>
+        </section>
+
+        <section class="card actuators-card">
+            <div class="section-head">
+                <h2>LED</h2>
+                <span class="badge" id="led-badge">—</span>
+            </div>
+            <p class="hint" id="threshold-mode">Mode auto : LED si température &gt; seuil</p>
+            <label class="slider-label">
+                <span class="slider-head">
+                    <span>Seuil température</span>
+                    <strong id="threshold-value">30,0 °C</strong>
+                </span>
+                <input type="range" id="temp-threshold-slider"
+                       min="10" max="50" step="0.5" value="30">
+            </label>
+            <p class="hint">GPIO 5 — curseur = mode auto. Boutons = mode manuel.</p>
+            <div class="actions">
+                <button type="button" id="btn-led-on" data-action="led_on">Allumer</button>
+                <button type="button" id="btn-led-off" data-action="led_off">Éteindre</button>
+            </div>
+            <p id="actuator-result" class="hint">—</p>
         </section>
 
         <section class="card config-card">
@@ -86,27 +120,12 @@
                     Mot de passe MQTT
                     <input type="password" id="cfg-password-input" name="password" autocomplete="off">
                 </label>
-                <label>
-                    Jeton API local
-                    <input type="password" id="api-token-input" name="apiToken" autocomplete="off"
-                           placeholder="X-Api-Token pour POST">
-                </label>
                 <div class="actions">
                     <button type="submit" id="btn-save-config">Enregistrer (NVS)</button>
                 </div>
             </form>
             <p class="hint">Topic : <span id="cfg-topic">—</span></p>
             <pre id="config-result" class="result">—</pre>
-        </section>
-
-        <section class="card actuators-card">
-            <h2>Actionneurs</h2>
-            <p class="hint">LED reportée — commande API testée côté firmware.</p>
-            <div class="actions">
-                <button type="button" id="btn-led-on" data-action="led_on">LED ON (stub)</button>
-                <button type="button" id="btn-led-off" data-action="led_off">LED OFF (stub)</button>
-            </div>
-            <pre id="actuator-result" class="result">—</pre>
         </section>
     </div>
     <script src="/app.js"></script>
