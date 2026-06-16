@@ -42,33 +42,6 @@ La configuration minimale imposée par le cahier des charges prévoit un BME280 
 
 *Figure 1 — Architecture globale : l’ESP32 exécute quatre tâches FreeRTOS (capteurs, réseau, web, supervision), persiste les mesures en mode offline via LittleFS, expose un dashboard web local et communique avec le broker MQTT. Node-RED ingère les messages, alimente la base NoSQL (InfluxDB) et affiche le dashboard de supervision.*
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              ESP32 (firmware)                               │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐                │
-│  │  sensor  │  │ network  │  │   web    │  │ supervision  │  ← FreeRTOS   │
-│  │   task   │  │   task   │  │   task   │  │     task     │                │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └──────────────┘                │
-│       │             │             │                                         │
-│       ▼             ▼             ▼                                         │
-│  sensors/      network/       web/ + API REST                               │
-│  actuators/    storage/      security/                                       │
-│                security/                                                      │
-└───────┬─────────────────┬───────────────────────────────────────────────────┘
-        │ MQTT QoS 1      │ HTTP :80 (+ AP fallback esp32-esp32-1)
-        ▼                 ▼
-┌───────────────┐    Interface locale (navigateur)
-│  Mosquitto    │
-│  :1883/:9001  │
-└───────┬───────┘
-        │
-        ▼
-┌───────────────┐     write (ts d'origine)     ┌─────────────┐
-│   Node-RED    │ ───────────────────────────► │  InfluxDB   │
-│   :1880/ui    │                              │  base iot   │
-└───────────────┘                              └─────────────┘
-```
-
 Le fichier source éditable du diagramme est disponible dans `docs/architecture.drawio`.
 
 ### 2.2 Répartition des responsabilités
