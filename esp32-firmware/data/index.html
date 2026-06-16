@@ -15,7 +15,7 @@
             </div>
             <div class="header-meta">
                 <span id="device-id">—</span>
-                <span id="ui-version">Dashboard v3</span>
+                <span id="ui-version">Dashboard v4</span>
                 <span id="last-update">Mise à jour…</span>
             </div>
         </header>
@@ -75,6 +75,20 @@
                     <p class="sensor-label">Bouton</p>
                     <p class="sensor-value"><span id="sensor-button">—</span></p>
                 </div>
+            </div>
+        </section>
+
+        <section class="card chart-card">
+            <div class="section-head">
+                <h2>Historique capteurs</h2>
+                <span class="chart-legend">
+                    <span class="legend-item legend-temp">Température</span>
+                    <span class="legend-item legend-hum">Humidité</span>
+                </span>
+            </div>
+            <p class="hint">Dernières mesures (rafraîchissement toutes les 2 s)</p>
+            <div class="chart-wrap">
+                <canvas id="sensor-chart" aria-label="Graphique température et humidité"></canvas>
             </div>
         </section>
 
