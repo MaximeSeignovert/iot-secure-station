@@ -1,4 +1,4 @@
-[
+﻿[
     {
         "id": "t_main",
         "type": "tab",
@@ -381,11 +381,67 @@
         ]
     },
     {
+        "id": "n_relayon",
+        "type": "ui_button",
+        "z": "t_main",
+        "name": "RELAY ON",
+        "group": "uigrp2",
+        "order": 3,
+        "width": "3",
+        "height": "1",
+        "passthru": false,
+        "label": "RELAY ON",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "on",
+        "payloadType": "str",
+        "topic": "relay",
+        "topicType": "str",
+        "x": 150,
+        "y": 570,
+        "wires": [
+            [
+                "n_cmd"
+            ]
+        ]
+    },
+    {
+        "id": "n_relayoff",
+        "type": "ui_button",
+        "z": "t_main",
+        "name": "RELAY OFF",
+        "group": "uigrp2",
+        "order": 4,
+        "width": "3",
+        "height": "1",
+        "passthru": false,
+        "label": "RELAY OFF",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "off",
+        "payloadType": "str",
+        "topic": "relay",
+        "topicType": "str",
+        "x": 150,
+        "y": 620,
+        "wires": [
+            [
+                "n_cmd"
+            ]
+        ]
+    },
+    {
         "id": "n_cmd",
         "type": "function",
         "z": "t_main",
         "name": "Construire commande",
-        "func": "// Cible par défaut : groupe g1, device esp32-1 (à adapter selon le device)\nconst cmd = msg.topic || 'led';\nconst value = msg.payload;\nmsg.topic = 'campus/g1/esp32-1/cmd';\nmsg.qos = 1;\nmsg.payload = JSON.stringify({\n    device: 'esp32-1',\n    cmd: cmd,\n    value: value\n});\nreturn msg;\n",
+        "func": "// Cible par défaut : groupe g1, device esp32-1 (à adapter selon le device)\nconst cmd = (msg.topic || 'led').toString();\nconst value = (msg.payload || 'off').toString();\nlet action = '';\nif (cmd === 'led' && value === 'on') action = 'led_on';\nelse if (cmd === 'led' && value === 'off') action = 'led_off';\nelse if (cmd === 'relay' && value === 'on') action = 'relay_on';\nelse if (cmd === 'relay' && value === 'off') action = 'relay_off';\n\nmsg.topic = 'campus/g1/esp32-1/cmd';\nmsg.qos = 1;\nmsg.payload = JSON.stringify({\n    device: 'esp32-1',\n    action: action,\n    cmd: cmd,\n    value: value\n});\nreturn msg;\n",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,

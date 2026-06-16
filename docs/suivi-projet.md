@@ -1,10 +1,10 @@
-# Document de travail — Infra & supervision
+﻿# Document de travail — Infra & supervision
 
 > Suivi de la partie **infra & supervision** (Docker, MQTT, Node-RED, InfluxDB, docs, bonus Grafana).
-> Le firmware ESP32 (capteurs, actionneurs, FreeRTOS, web embarqué, buffer offline) est tenu par le
-> coéquipier ; seul le **comportement MQTT** de `esp32-firmware/src/network/` est à caler ensemble.
+> Le firmware ESP32 est désormais intégré à la convention MQTT côté infra
+> (`campus/<groupe>/<deviceID>/data` et `.../cmd`, QoS 1).
 
-Dernière mise à jour : 2026-06-15
+Dernière mise à jour : 2026-06-16
 
 ---
 
@@ -95,14 +95,14 @@ curl -s -G "http://localhost:8086/query?db=iot" \
 ### Objectifs du projet
 | # | Objectif | Côté | État |
 |---|----------|------|------|
-| 1 | Acquisition capteurs | firmware | ❌ |
-| 2 | Commande actionneurs | firmware | ❌ |
-| 3 | Publication MQTT | infra/network | ❌ (client firmware à écrire) |
-| 4 | Stockage offline JSON | firmware | ❌ |
-| 5 | Interface web locale | firmware | ❌ |
+| 1 | Acquisition capteurs | firmware | ✅ (DHT22 + filtrage + aberrants) |
+| 2 | Commande actionneurs | firmware | ✅ (LED + relais) |
+| 3 | Publication MQTT | firmware + infra | ✅ (QoS 1) |
+| 4 | Stockage offline JSON | firmware | ✅ |
+| 5 | Interface web locale | firmware | ✅ |
 | 6 | Communication Node-RED | **infra** | ✅ broker + flux + stockage + dashboard |
-| 7 | Sécurité | **infra** + firmware | 🟡 auth MQTT ✅, validation JSON ✅, API locale ❌ (firmware) |
-| 8 | Optimisation CPU/RAM | firmware | ❌ |
+| 7 | Sécurité | **infra** + firmware | ✅ baseline |
+| 8 | Optimisation CPU/RAM | firmware | ✅ (heap/uptime/latence publication) |
 
 ### Détail infra
 | Élément | État |
@@ -116,22 +116,20 @@ curl -s -G "http://localhost:8086/query?db=iot" \
 | Convention de topics documentée | ✅ |
 | **Bonus Grafana** | ❌ à faire |
 
-### Badges
-- ✅ **Security Engineer** (auth MQTT + validation JSON) — en bonne voie
-- ✅ **Full-Stack IoT** (côté serveur : Node-RED + dashboard) — partie infra OK
-- 🟡 **Reliability Engineer** — persistance broker en place ; reste la démo offline avec le firmware
+### Badges (état technique)
+- ✅ **Security Engineer** (auth MQTT + validation JSON + API locale protégée)
+- ✅ **Full-Stack IoT** (web embarquée + Node-RED + commandes)
+- ✅ **Reliability Engineer** (buffer offline + rejeu MQTT)
+- ✅ **Network Engineer** (reco + QoS 1 + topic data/cmd)
 
 ## 6. Reste à faire
 
-**Infra (moi)**
+**Infra**
 - [ ] Bonus **Grafana** : ajouter le service au compose, datasource InfluxDB `iot`, dashboard
       (mesures + métrique de robustesse) et une **alerte** (absence de données / valeur aberrante).
 - [ ] Enrichir le dashboard Node-RED si besoin (graphe historique `ui_chart`).
-- [ ] Compléter `docs/architecture.drawio` et `docs/rapport.md` (captures dans `docs/screenshots/`).
+- [ ] Compléter `docs/architecture.drawio` et `docs/rapport.md`.
 
-**Coordination avec le firmware (tâche `network/`)**
-- [ ] Le client MQTT ESP32 doit : s'authentifier (`esp32` / mot de passe), publier en **QoS ≥ 1** sur
-      `campus/<g>/<dev>/data`, s'abonner à `campus/<g>/<dev>/cmd`, et respecter le **schéma JSON**.
-- [ ] Valider ensemble le **format des commandes** (`/cmd`) attendu par le firmware
-      (actuellement le flux envoie `{ "device", "cmd", "value" }`).
-- [ ] Démo **offline** de bout en bout (buffer firmware ↔ rejeu ↔ historique InfluxDB).
+**Intégration finale**
+- [ ] Vérifier sur matériel réel la correspondance exacte des broches (capteurs/actionneurs).
+- [ ] Capturer une démo complète bout en bout (online/offline/commandes).

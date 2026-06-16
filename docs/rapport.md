@@ -2,25 +2,38 @@
 
 ## 1. Contexte
 
-Projet de station IoT sécurisée pour la collecte de données capteurs et la supervision distante.
+Station IoT sécurisée basée sur ESP32, avec collecte capteurs, pilotage actionneurs, résilience réseau et supervision centralisée.
 
 ## 2. Architecture
 
-Voir `architecture.drawio` pour le schéma détaillé.
+- Firmware modulaire `esp32-firmware/src/` organisé par domaines (`sensors`, `actuators`, `network`, `storage`, `web`, `security`, `supervision`)
+- FreeRTOS avec 4 tâches dédiées : acquisition, réseau MQTT, web local, supervision système
+- Backend de supervision : Mosquitto + Node-RED + InfluxDB via Docker
 
-## 3. Composants
+## 3. Fonctionnalités implémentées
 
-- **ESP32** : acquisition capteurs, actuateurs, interface web embarquée
-- **MQTT** : bus de messages entre firmware et supervision
-- **Node-RED** : orchestration, tableaux de bord, alertes
-- **Docker** : déploiement reproductible de l'infrastructure
+- Acquisition capteurs : DHT22 + potentiomètre + bouton
+- Filtrage et robustesse : moyenne glissante, détection de pics anormaux, fallback dernière mesure valide
+- MQTT : publication `campus/<groupe>/<deviceID>/data`, abonnement `.../cmd`, QoS 1
+- Mode offline : buffer JSONL LittleFS et rejeu automatique à reconnexion
+- Interface web embarquée : live capteurs, état connexion, config MQTT (NVS), commandes actionneurs
+- Actionneurs : LED et relais commandables localement (API) et à distance (MQTT)
 
 ## 4. Sécurité
 
-- Authentification MQTT
-- Chiffrement TLS (à configurer en production)
-- Validation des entrées côté firmware
+- Authentification MQTT côté broker (Mosquitto)
+- Validation des JSON entrants (config et commandes)
+- Protection des routes POST de l'API locale via `X-Api-Token`
+- Stockage des secrets projet hors git (`secrets.h`, `.env`)
 
-## 5. Captures d'écran
+## 5. Observabilité
 
-Placer les captures dans `docs/screenshots/`.
+- Logs périodiques : uptime, heap libre, latence de publication MQTT
+- Dashboard Node-RED : mesures capteurs et commandes
+- Rejets JSON invalides remontés sur topic `.../alerts`
+
+## 6. Limites connues / suite
+
+- Finaliser le câblage matériel réel selon la station finale
+- Compléter les preuves de démo (captures/vidéo)
+- Bonus Grafana à intégrer (hors périmètre immédiat)

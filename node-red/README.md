@@ -1,4 +1,4 @@
-# Node-RED — IoT Secure Station
+﻿# Node-RED — IoT Secure Station
 
 Flux de supervision : ingest MQTT → validation JSON → stockage InfluxDB → dashboard → commandes.
 
@@ -28,7 +28,7 @@ Schéma conforme à la spec (`campus/<groupe>/<deviceID>/...`) :
 | `campus/<groupe>/<deviceID>/alerts` | Node-RED ↔        | Alertes (ex. JSON invalide rejeté) |
 
 Node-RED s'abonne à `campus/+/+/data` (tous groupes/devices) et publie les commandes sur
-`campus/<groupe>/<deviceID>/cmd`.
+`campus/<groupe>/<deviceID>/cmd` avec QoS 1.
 
 ## Format JSON imposé (topic `data`)
 
@@ -39,6 +39,22 @@ Node-RED s'abonne à `campus/+/+/data` (tous groupes/devices) et publie les comm
 - `ts` accepté en secondes ou millisecondes (le flux normalise) — utilisé comme **timestamp InfluxDB**
   pour préserver l'historique lors du rejeu offline.
 - Tout message ne respectant pas ce schéma est **rejeté** et republié sur `.../alerts`.
+
+### Format commandes (`cmd`)
+
+Le firmware accepte les deux formats suivants:
+
+```json
+{ "action": "led_on" }
+```
+
+ou
+
+```json
+{ "cmd": "led", "value": "on" }
+```
+
+Actions supportées : `led_on`, `led_off`, `relay_on`, `relay_off`.
 
 ## Identifiants
 
